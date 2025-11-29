@@ -1,0 +1,26 @@
+
+      graph {
+         graph [rankdir=LR];
+         node [label="\N",
+             shape=plaintext
+         ];
+         edge [color=gray50,
+             minlen=2,
+             style=dashed
+         ];
+      
+"admin_lot" [label=<<FONT FACE="Helvetica"><TABLE BORDER="0" CELLBORDER="1" CELLPADDING="4" CELLSPACING="0"><TR><TD><B><FONT POINT-SIZE="16">admin_lot</FONT></B></TD></TR><TR><TD ALIGN="LEFT" PORT="admin_id"><u><FONT>admin_id</FONT></u> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="lot_id"><u><FONT>lot_id</FONT></u> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR></TABLE></FONT>>];
+"user" [label=<<FONT FACE="Helvetica"><TABLE BORDER="0" CELLBORDER="1" CELLPADDING="4" CELLSPACING="0"><TR><TD><B><FONT POINT-SIZE="16">user</FONT></B></TD></TR><TR><TD ALIGN="LEFT" PORT="id"><u><FONT>id</FONT></u> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="email"><FONT>email</FONT> <FONT> [VARCHAR(150)]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="is_admin"><FONT>is_admin</FONT> <FONT> [BOOLEAN]</FONT></TD></TR><TR><TD ALIGN="LEFT" PORT="name"><FONT>name</FONT> <FONT> [VARCHAR(150)]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="password"><FONT>password</FONT> <FONT> [VARCHAR(150)]</FONT> NOT NULL</TD></TR></TABLE></FONT>>];
+"parking_lot" [label=<<FONT FACE="Helvetica"><TABLE BORDER="0" CELLBORDER="1" CELLPADDING="4" CELLSPACING="0"><TR><TD><B><FONT POINT-SIZE="16">parking_lot</FONT></B></TD></TR><TR><TD ALIGN="LEFT" PORT="id"><u><FONT>id</FONT></u> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="location"><FONT>location</FONT> <FONT> [VARCHAR(100)]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="name"><FONT>name</FONT> <FONT> [VARCHAR(100)]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="total_spots"><FONT>total_spots</FONT> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR></TABLE></FONT>>];
+"admin_lots" [label=<<FONT FACE="Helvetica"><TABLE BORDER="0" CELLBORDER="1" CELLPADDING="4" CELLSPACING="0"><TR><TD><B><FONT POINT-SIZE="16">admin_lots</FONT></B></TD></TR><TR><TD ALIGN="LEFT" PORT="lot_id"><u><FONT>lot_id</FONT></u> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="user_id"><u><FONT>user_id</FONT></u> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR></TABLE></FONT>>];
+"parking_spot" [label=<<FONT FACE="Helvetica"><TABLE BORDER="0" CELLBORDER="1" CELLPADDING="4" CELLSPACING="0"><TR><TD><B><FONT POINT-SIZE="16">parking_spot</FONT></B></TD></TR><TR><TD ALIGN="LEFT" PORT="id"><u><FONT>id</FONT></u> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="booked_by"><FONT>booked_by</FONT> <FONT> [VARCHAR(100)]</FONT></TD></TR><TR><TD ALIGN="LEFT" PORT="is_booked"><FONT>is_booked</FONT> <FONT> [BOOLEAN]</FONT></TD></TR><TR><TD ALIGN="LEFT" PORT="lot_id"><FONT>lot_id</FONT> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="slot_number"><FONT>slot_number</FONT> <FONT> [VARCHAR(50)]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="status"><FONT>status</FONT> <FONT> [INTEGER]</FONT></TD></TR><TR><TD ALIGN="LEFT" PORT="timestamp"><FONT>timestamp</FONT> <FONT> [DATETIME]</FONT></TD></TR><TR><TD ALIGN="LEFT" PORT="user_id"><FONT>user_id</FONT> <FONT> [INTEGER]</FONT></TD></TR></TABLE></FONT>>];
+"reservation" [label=<<FONT FACE="Helvetica"><TABLE BORDER="0" CELLBORDER="1" CELLPADDING="4" CELLSPACING="0"><TR><TD><B><FONT POINT-SIZE="16">reservation</FONT></B></TD></TR><TR><TD ALIGN="LEFT" PORT="id"><u><FONT>id</FONT></u> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="booked_at"><FONT>booked_at</FONT> <FONT> [DATETIME]</FONT></TD></TR><TR><TD ALIGN="LEFT" PORT="released_at"><FONT>released_at</FONT> <FONT> [DATETIME]</FONT></TD></TR><TR><TD ALIGN="LEFT" PORT="spot_id"><FONT>spot_id</FONT> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR><TR><TD ALIGN="LEFT" PORT="user_id"><FONT>user_id</FONT> <FONT> [INTEGER]</FONT> NOT NULL</TD></TR></TABLE></FONT>>];
+"parking_lot":"id" -- "admin_lot":"lot_id" [taillabel=<<FONT>1</FONT>>,headlabel=<<FONT>0..N</FONT>>];
+"user":"id" -- "admin_lot":"admin_id" [taillabel=<<FONT>1</FONT>>,headlabel=<<FONT>0..N</FONT>>];
+"user":"id" -- "admin_lots":"user_id" [taillabel=<<FONT>1</FONT>>,headlabel=<<FONT>0..N</FONT>>];
+"parking_lot":"id" -- "admin_lots":"lot_id" [taillabel=<<FONT>1</FONT>>,headlabel=<<FONT>0..N</FONT>>];
+"parking_lot":"id" -- "parking_spot":"lot_id" [taillabel=<<FONT>1</FONT>>,headlabel=<<FONT>0..N</FONT>>];
+"user":"id" -- "parking_spot":"user_id" [taillabel=<<FONT>{0,1}</FONT>>,headlabel=<<FONT>0..N</FONT>>];
+"user":"id" -- "reservation":"user_id" [taillabel=<<FONT>1</FONT>>,headlabel=<<FONT>0..N</FONT>>];
+"parking_spot":"id" -- "reservation":"spot_id" [taillabel=<<FONT>1</FONT>>,headlabel=<<FONT>0..N</FONT>>];
+}

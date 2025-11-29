@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="text-center mt-4">
+    <a href="{{ url_for('routes.dashboard') }}" class="btn btn-secondary">Go to User Dashboard</a>
+</div>
+<h2 class="text-center mb-4">Admin Dashboard</h2>
+
+<!-- USERS SECTION (Only for Super Admin) -->
+{% if is_super_admin %}
+<div class="card mb-5 shadow-sm border-0">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">Registered Users</h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Admin?</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+            <tr>
+              <td>{{ user.id }}</td>
+              <td>{{ user.name }}</td>
+              <td>{{ user.email }}</td>
+              <td>
+                {% if user.is_admin %}
+                  <span class="badge bg-success">Yes</span>
+                {% else %}
+                  <span class="badge bg-secondary">No</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if user.email != super_admin_email %}
+                  {% if user.is_admin %}
+                    <a href="{{ url_for('routes.revoke_admin', user_id=user.id) }}" class="btn btn-warning btn-sm">Revoke</a>
+                  {% else %}
+                    <a href="{{ url_for('routes.make_admin', user_id=user.id) }}" class="btn btn-outline-primary btn-sm">Make Admin</a>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">Super Admin</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ADD LOT SECTION -->
+<div class="card mb-5 shadow-sm border-0">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0">Add New Parking Lot</h5>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('routes.add_lot') }}">
+      <div class="mb-3">
+        <label for="lot_name" class="form-label">Lot Name:</label>
+        <input type="text" name="lot_name" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label for="location" class="form-label">Location:</label>
+        <input type="text" name="location" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label for="slot_count" class="form-label">Number of Slots:</label>
+        <input type="number" name="slot_count" class="form-control" required min="1">
+      </div>
+      <button type="submit" class="btn btn-success">Add Lot</button>
+    </form>
+  </div>
+</div>
+
+<!-- MANAGED LOTS SECTION -->
+<h4 class="mb-3">Managed Parking Lots</h4>
+<div class="row">
+  {% for lot in lots %}
+    <div class="col-md-6">
+      <div class="card mb-4 shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title">{{ lot.name }}</h5>
+          <p class="card-text text-muted"><i class="bi bi-geo-alt"></i> {{ lot.location }}</p>
+          <p class="card-text"><strong>Total Slots:</strong> {{ lot.spots | length }}</p>
+          <a href="{{ url_for('routes.view_lot', lot_id=lot.id) }}" class="btn btn-outline-info btn-sm">View Slots</a>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+
+{% endblock %}
