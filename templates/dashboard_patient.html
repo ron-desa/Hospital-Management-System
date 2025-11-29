@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Patient Dashboard | HMS{% endblock %}
+{% block content %}
+<h2>Patient Dashboard</h2>
+<p>Welcome, {{ session.get('full_name') }}.</p>
+
+<h4 class="mt-4">Departments / Specializations</h4>
+<ul>
+    {% for dept in departments %}
+    <li>{{ dept['name'] }} - {{ dept['description'] }}</li>
+    {% endfor %}
+</ul>
+
+<p class="text-muted mt-3">
+Doctor availability, appointment booking and history will appear here.
+</p>
+{% endblock %}
