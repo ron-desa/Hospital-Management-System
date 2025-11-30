@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Book Appointment | HMS{% endblock %}
+
+{% block content %}
+<h2>Book Appointment</h2>
+
+<div class="card mt-3 mb-3">
+    <div class="card-body">
+        <h5 class="card-title">{{ doctor['full_name'] }}</h5>
+        <p class="card-text mb-1">
+            <strong>Specialization:</strong> {{ doctor['dept_name'] or 'N/A' }}
+        </p>
+        <p class="card-text mb-1">
+            <strong>Room:</strong> {{ doctor['room_no'] or '-' }}
+        </p>
+        <p class="card-text">
+            <strong>Contact:</strong> {{ doctor['email'] or '-' }} | {{ doctor['phone'] or '-' }}
+        </p>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('main.patient_book_appointment', doctor_id=doctor['doctor_id']) }}">
+    <div class="row">
+        <div class="mb-3 col-md-4">
+            <label class="form-label">Date</label>
+            <input type="date" class="form-control" name="date" required>
+        </div>
+        <div class="mb-3 col-md-4">
+            <label class="form-label">Time</label>
+            <input type="time" class="form-control" name="time" required>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-success">Confirm Booking</button>
+    <a href="{{ url_for('main.patient_doctors') }}" class="btn btn-secondary ms-2">Cancel</a>
+</form>
+{% endblock %}

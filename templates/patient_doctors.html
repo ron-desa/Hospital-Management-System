@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Find Doctors | HMS{% endblock %}
+
+{% block content %}
+<h2>Find Doctors</h2>
+
+<form class="row g-2 mt-3 mb-3" method="GET" action="{{ url_for('main.patient_doctors') }}">
+    <div class="col-md-4">
+        <input
+            type="text"
+            class="form-control"
+            name="q"
+            placeholder="Search by doctor name or specialization"
+            value="{{ request.args.get('q', '') }}"
+        >
+    </div>
+    <div class="col-md-4">
+        <select class="form-select" name="department_id">
+            <option value="">All Departments</option>
+            {% for dept in departments %}
+            <option
+                value="{{ dept['id'] }}"
+                {% if request.args.get('department_id') == dept['id']|string %}selected{% endif %}
+            >
+                {{ dept['name'] }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4 d-flex">
+        <button class="btn btn-primary me-2" type="submit">Search</button>
+        <a href="{{ url_for('main.patient_dashboard') }}" class="btn btn-secondary">Back</a>
+    </div>
+</form>
+
+<table class="table table-striped table-bordered align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Doctor</th>
+            <th>Specialization</th>
+            <th>Room</th>
+            <th>Contact</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% if doctors %}
+        {% for d in doctors %}
+        <tr>
+            <td>{{ d['full_name'] }}</td>
+            <td>{{ d['dept_name'] or 'N/A' }}</td>
+            <td>{{ d['room_no'] or '-' }}</td>
+            <td>
+                {{ d['email'] or '-' }}<br>
+                {{ d['phone'] or '-' }}
+            </td>
+            <td>
+                <a
+                    href="{{ url_for('main.patient_book_appointment', doctor_id=d['doctor_id']) }}"
+                    class="btn btn-sm btn-success"
+                >
+                    Book Appointment
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    {% else %}
+        <tr>
+            <td colspan="5" class="text-center">No doctors found.</td>
+        </tr>
+    {% endif %}
+    </tbody>
+</table>
+{% endblock %}

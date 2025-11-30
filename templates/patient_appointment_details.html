@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Appointment Details | HMS{% endblock %}
+
+{% block content %}
+<h2>Appointment Details</h2>
+
+<div class="card mt-3 mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Doctor: {{ appt['doctor_name'] }}</h5>
+        <p class="card-text mb-1">
+            <strong>Specialization:</strong> {{ appt['dept_name'] or 'N/A' }}
+        </p>
+        <p class="card-text mb-1">
+            <strong>Date & Time:</strong> {{ appt['date'] }} at {{ appt['time'] }}
+        </p>
+        <p class="card-text mb-1">
+            <strong>Status:</strong> {{ appt['status'] }}
+        </p>
+    </div>
+</div>
+
+<h4>Treatment Details</h4>
+{% if appt['diagnosis'] or appt['prescription'] or appt['notes'] %}
+    <p><strong>Diagnosis:</strong> {{ appt['diagnosis'] or 'N/A' }}</p>
+    <p><strong>Prescription:</strong> {{ appt['prescription'] or 'N/A' }}</p>
+    <p><strong>Doctor Notes:</strong><br>{{ appt['notes'] or 'N/A' }}</p>
+{% else %}
+    <p class="text-muted">No treatment details recorded yet.</p>
+{% endif %}
+
+<a href="{{ url_for('main.patient_appointments') }}" class="btn btn-secondary mt-3">
+    ← Back to My Appointments
+</a>
+{% endblock %}

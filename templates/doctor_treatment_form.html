@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Treatment Notes | HMS{% endblock %}
+
+{% block content %}
+<h2>Treatment Notes</h2>
+
+<div class="card mt-3 mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Patient: {{ appt['patient_name'] }}</h5>
+        <p class="card-text mb-1">
+            <strong>Date & Time:</strong> {{ appt['date'] }} at {{ appt['time'] }}
+        </p>
+        <p class="card-text mb-1">
+            <strong>Status:</strong> {{ appt['status'] }}
+        </p>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('main.doctor_treatment', appointment_id=appt['id']) }}">
+    <div class="mb-3">
+        <label class="form-label">Diagnosis</label>
+        <textarea class="form-control" name="diagnosis" rows="2">{{ appt['diagnosis'] or '' }}</textarea>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Prescription</label>
+        <textarea class="form-control" name="prescription" rows="2">{{ appt['prescription'] or '' }}</textarea>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Doctor Notes</label>
+        <textarea class="form-control" name="notes" rows="3">{{ appt['notes'] or '' }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-success">Save</button>
+    <a href="{{ url_for('main.doctor_appointments') }}" class="btn btn-secondary ms-2">Back</a>
+</form>
+{% endblock %}

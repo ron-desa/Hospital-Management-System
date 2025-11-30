@@ -2,7 +2,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, session, flash
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, date as date_cls
+import sqlite3
 
 from models.models import get_db_connection
 
@@ -30,6 +31,34 @@ def role_required(role):
             return view_func(*args, **kwargs)
         return wrapped
     return decorator
+
+
+def get_current_patient_id():
+    if "user_id" not in session:
+        return None
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT p.id FROM patients p JOIN users u ON p.user_id = u.id WHERE u.id = ?;",
+        (session["user_id"],),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return row["id"] if row else None
+
+
+def get_current_doctor_id():
+    if "user_id" not in session:
+        return None
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT d.id FROM doctors d JOIN users u ON d.user_id = u.id WHERE u.id = ?;",
+        (session["user_id"],),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return row["id"] if row else None
 
 
 # --------- Auth & Index ---------
@@ -116,17 +145,23 @@ def register():
         password_hash = generate_password_hash(password)
 
         # Insert into users
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO users (username, password_hash, full_name, email, phone, role, is_active, created_at)
             VALUES (?, ?, ?, ?, ?, 'patient', 1, ?);
-        """, (username, password_hash, full_name, email, phone, now))
+        """,
+            (username, password_hash, full_name, email, phone, now),
+        )
         user_id = cur.lastrowid
 
         # Insert into patients
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO patients (user_id, age, gender, address, emergency_contact, is_blacklisted)
             VALUES (?, ?, ?, ?, ?, 0);
-        """, (user_id, age, gender, address, emergency_contact))
+        """,
+            (user_id, age, gender, address, emergency_contact),
+        )
 
         conn.commit()
         conn.close()
@@ -159,7 +194,7 @@ def admin_dashboard():
     stats = {
         "total_doctors": total_doctors,
         "total_patients": total_patients,
-        "total_appointments": total_appointments
+        "total_appointments": total_appointments,
     }
 
     return render_template("dashboard_admin.html", stats=stats)
@@ -169,7 +204,6 @@ def admin_dashboard():
 @login_required
 @role_required("doctor")
 def doctor_dashboard():
-    # TODO: show upcoming appointments for this doctor, list of patients
     return render_template("dashboard_doctor.html")
 
 
@@ -177,7 +211,6 @@ def doctor_dashboard():
 @login_required
 @role_required("patient")
 def patient_dashboard():
-    # fetch departments for listing
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM departments ORDER BY name;")
@@ -263,17 +296,23 @@ def admin_add_doctor():
         password_hash = generate_password_hash(password)
 
         # Insert into users table with role=doctor
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO users (username, password_hash, full_name, email, phone, role, is_active, created_at)
             VALUES (?, ?, ?, ?, ?, 'doctor', 1, ?);
-        """, (username, password_hash, full_name, email, phone, now))
+        """,
+            (username, password_hash, full_name, email, phone, now),
+        )
         user_id = cur.lastrowid
 
         # Insert into doctors table
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO doctors (user_id, department_id, bio, room_no, is_blacklisted)
             VALUES (?, ?, ?, ?, 0);
-        """, (user_id, department_id, bio, room_no))
+        """,
+            (user_id, department_id, bio, room_no),
+        )
 
         conn.commit()
         conn.close()
@@ -307,3 +346,423 @@ def admin_toggle_doctor_blacklist(doctor_id):
 
     flash("Doctor status updated.", "info")
     return redirect(url_for("main.admin_doctors"))
+
+
+# --------- Patient: Find Doctors & Book ---------
+@main_bp.route("/patient/doctors")
+@login_required
+@role_required("patient")
+def patient_doctors():
+    q = request.args.get("q", "").strip()
+    department_id = request.args.get("department_id", "").strip()
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    query = """
+        SELECT d.id AS doctor_id,
+               u.full_name,
+               u.email,
+               u.phone,
+               d.room_no,
+               dept.name AS dept_name
+        FROM doctors d
+        JOIN users u ON d.user_id = u.id
+        LEFT JOIN departments dept ON d.department_id = dept.id
+        WHERE d.is_blacklisted = 0 AND u.is_active = 1
+    """
+    params = []
+
+    if department_id:
+        query += " AND dept.id = ?"
+        params.append(department_id)
+
+    if q:
+        query += " AND (u.full_name LIKE ? OR dept.name LIKE ?)"
+        like_q = f"%{q}%"
+        params.extend([like_q, like_q])
+
+    query += " ORDER BY u.full_name;"
+
+    cur.execute(query, params)
+    doctors = cur.fetchall()
+
+    cur.execute("SELECT * FROM departments ORDER BY name;")
+    departments = cur.fetchall()
+
+    conn.close()
+
+    return render_template("patient_doctors.html", doctors=doctors, departments=departments)
+
+
+@main_bp.route("/patient/book/<int:doctor_id>", methods=["GET", "POST"])
+@login_required
+@role_required("patient")
+def patient_book_appointment(doctor_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Fetch doctor info
+    cur.execute(
+        """
+        SELECT d.id AS doctor_id,
+               u.full_name,
+               u.email,
+               u.phone,
+               d.room_no,
+               d.is_blacklisted,
+               dept.name AS dept_name
+        FROM doctors d
+        JOIN users u ON d.user_id = u.id
+        LEFT JOIN departments dept ON d.department_id = dept.id
+        WHERE d.id = ?;
+        """,
+        (doctor_id,),
+    )
+    doctor = cur.fetchone()
+
+    if not doctor or doctor["is_blacklisted"]:
+        conn.close()
+        flash("Doctor not available.", "danger")
+        return redirect(url_for("main.patient_doctors"))
+
+    if request.method == "POST":
+        date_str = request.form.get("date")
+        time_str = request.form.get("time")
+
+        if not date_str or not time_str:
+            flash("Please select date and time.", "warning")
+            conn.close()
+            return render_template("patient_book_appointment.html", doctor=doctor)
+
+        patient_id = get_current_patient_id()
+        if not patient_id:
+            conn.close()
+            flash("Patient profile not found.", "danger")
+            return redirect(url_for("main.patient_dashboard"))
+
+        now = datetime.utcnow().isoformat()
+        try:
+            cur.execute(
+                """
+                INSERT INTO appointments (patient_id, doctor_id, date, time, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 'Booked', ?, ?);
+                """,
+                (patient_id, doctor_id, date_str, time_str, now, now),
+            )
+            conn.commit()
+            flash("Appointment booked successfully.", "success")
+        except sqlite3.IntegrityError:
+            # Unique constraint on (doctor_id, date, time)
+            flash("This slot is already booked for the doctor. Please choose another time.", "danger")
+            conn.rollback()
+            conn.close()
+            return render_template("patient_book_appointment.html", doctor=doctor)
+
+        conn.close()
+        return redirect(url_for("main.patient_appointments"))
+
+    conn.close()
+    return render_template("patient_book_appointment.html", doctor=doctor)
+
+
+# --------- Patient: View & Cancel Appointments ---------
+@main_bp.route("/patient/appointments")
+@login_required
+@role_required("patient")
+def patient_appointments():
+    patient_id = get_current_patient_id()
+    if not patient_id:
+        flash("Patient profile not found.", "danger")
+        return redirect(url_for("main.patient_dashboard"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT a.*, u.full_name AS doctor_name, dept.name AS dept_name
+        FROM appointments a
+        JOIN doctors d ON a.doctor_id = d.id
+        JOIN users u ON d.user_id = u.id
+        LEFT JOIN departments dept ON d.department_id = dept.id
+        WHERE a.patient_id = ?
+        ORDER BY a.date DESC, a.time DESC;
+        """,
+        (patient_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    today_str = date_cls.today().isoformat()
+    upcoming = []
+    past = []
+
+    for r in rows:
+        # simple classification: date >= today => upcoming
+        if r["date"] >= today_str and r["status"] == "Booked":
+            upcoming.append(r)
+        else:
+            past.append(r)
+
+    return render_template("patient_appointments.html", upcoming=upcoming, past=past)
+
+
+@main_bp.route("/patient/appointments/<int:appointment_id>/cancel")
+@login_required
+@role_required("patient")
+def patient_cancel_appointment(appointment_id):
+    patient_id = get_current_patient_id()
+    if not patient_id:
+        flash("Patient profile not found.", "danger")
+        return redirect(url_for("main.patient_dashboard"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT * FROM appointments WHERE id = ? AND patient_id = ?;",
+        (appointment_id, patient_id),
+    )
+    appt = cur.fetchone()
+
+    if not appt:
+        conn.close()
+        flash("Appointment not found.", "danger")
+        return redirect(url_for("main.patient_appointments"))
+
+    if appt["status"] != "Booked":
+        conn.close()
+        flash("Only booked appointments can be cancelled.", "warning")
+        return redirect(url_for("main.patient_appointments"))
+
+    now = datetime.utcnow().isoformat()
+    cur.execute(
+        """
+        UPDATE appointments
+        SET status = 'Cancelled', updated_at = ?
+        WHERE id = ?;
+        """,
+        (now, appointment_id),
+    )
+    conn.commit()
+    conn.close()
+
+    flash("Appointment cancelled.", "info")
+    return redirect(url_for("main.patient_appointments"))
+
+
+# --------- Doctor: View & Update Appointments ---------
+@main_bp.route("/doctor/appointments")
+@login_required
+@role_required("doctor")
+def doctor_appointments():
+    doctor_id = get_current_doctor_id()
+    if not doctor_id:
+        flash("Doctor profile not found.", "danger")
+        return redirect(url_for("main.doctor_dashboard"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT a.*, u.full_name AS patient_name, u.phone
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.id
+        JOIN users u ON p.user_id = u.id
+        WHERE a.doctor_id = ?
+        ORDER BY a.date DESC, a.time DESC;
+        """,
+        (doctor_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    today_str = date_cls.today().isoformat()
+    upcoming = []
+    past = []
+
+    for r in rows:
+        if r["date"] >= today_str and r["status"] == "Booked":
+            upcoming.append(r)
+        else:
+            past.append(r)
+
+    return render_template("doctor_appointments.html", upcoming=upcoming, past=past)
+
+
+@main_bp.route("/doctor/appointments/<int:appointment_id>/status/<new_status>")
+@login_required
+@role_required("doctor")
+def doctor_update_appointment_status(appointment_id, new_status):
+    doctor_id = get_current_doctor_id()
+    if not doctor_id:
+        flash("Doctor profile not found.", "danger")
+        return redirect(url_for("main.doctor_dashboard"))
+
+    if new_status not in ("Completed", "Cancelled"):
+        flash("Invalid status.", "danger")
+        return redirect(url_for("main.doctor_appointments"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT * FROM appointments WHERE id = ? AND doctor_id = ?;",
+        (appointment_id, doctor_id),
+    )
+    appt = cur.fetchone()
+
+    if not appt:
+        conn.close()
+        flash("Appointment not found.", "danger")
+        return redirect(url_for("main.doctor_appointments"))
+
+    if appt["status"] != "Booked":
+        conn.close()
+        flash("Only booked appointments can be updated.", "warning")
+        return redirect(url_for("main.doctor_appointments"))
+
+    now = datetime.utcnow().isoformat()
+    cur.execute(
+        """
+        UPDATE appointments
+        SET status = ?, updated_at = ?
+        WHERE id = ?;
+        """,
+        (new_status, now, appointment_id),
+    )
+    conn.commit()
+    conn.close()
+
+    flash(f"Appointment marked as {new_status}.", "success")
+    return redirect(url_for("main.doctor_appointments"))
+
+# --------- Doctor: Add/Edit Treatment ---------
+@main_bp.route("/doctor/appointments/<int:appointment_id>/treatment", methods=["GET", "POST"])
+@login_required
+@role_required("doctor")
+def doctor_treatment(appointment_id):
+    doctor_id = get_current_doctor_id()
+    if not doctor_id:
+        flash("Doctor profile not found.", "danger")
+        return redirect(url_for("main.doctor_dashboard"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Fetch appointment + existing treatment (if any)
+    cur.execute(
+        """
+        SELECT a.*,
+               u.full_name AS patient_name,
+               t.diagnosis,
+               t.prescription,
+               t.notes
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.id
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN treatments t ON t.appointment_id = a.id
+        WHERE a.id = ? AND a.doctor_id = ?;
+        """,
+        (appointment_id, doctor_id),
+    )
+    appt = cur.fetchone()
+
+    if not appt:
+        conn.close()
+        flash("Appointment not found.", "danger")
+        return redirect(url_for("main.doctor_appointments"))
+
+    if request.method == "POST":
+        diagnosis = request.form.get("diagnosis")
+        prescription = request.form.get("prescription")
+        notes = request.form.get("notes")
+        now = datetime.utcnow().isoformat()
+
+        # If still Booked, mark as Completed when treatment is saved
+        if appt["status"] == "Booked":
+            cur.execute(
+                """
+                UPDATE appointments
+                SET status = 'Completed', updated_at = ?
+                WHERE id = ?;
+                """,
+                (now, appointment_id),
+            )
+
+        # Check if treatment already exists
+        cur.execute(
+            "SELECT id FROM treatments WHERE appointment_id = ?;",
+            (appointment_id,),
+        )
+        existing = cur.fetchone()
+
+        if existing:
+            cur.execute(
+                """
+                UPDATE treatments
+                SET diagnosis = ?, prescription = ?, notes = ?, created_at = ?
+                WHERE appointment_id = ?;
+                """,
+                (diagnosis, prescription, notes, now, appointment_id),
+            )
+        else:
+            cur.execute(
+                """
+                INSERT INTO treatments (appointment_id, diagnosis, prescription, notes, created_at)
+                VALUES (?, ?, ?, ?, ?);
+                """,
+                (appointment_id, diagnosis, prescription, notes, now),
+            )
+
+        conn.commit()
+        conn.close()
+
+        flash("Treatment details saved.", "success")
+        return redirect(url_for("main.doctor_appointments"))
+
+    # GET: show form with existing data (if any)
+    conn.close()
+    return render_template("doctor_treatment_form.html", appt=appt)
+
+
+# --------- Patient: Appointment details with treatment ---------
+@main_bp.route("/patient/appointments/<int:appointment_id>")
+@login_required
+@role_required("patient")
+def patient_appointment_details(appointment_id):
+    patient_id = get_current_patient_id()
+    if not patient_id:
+        flash("Patient profile not found.", "danger")
+        return redirect(url_for("main.patient_dashboard"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT a.*,
+               du.full_name AS doctor_name,
+               dept.name AS dept_name,
+               t.diagnosis,
+               t.prescription,
+               t.notes
+        FROM appointments a
+        JOIN doctors d ON a.doctor_id = d.id
+        JOIN users du ON d.user_id = du.id
+        LEFT JOIN departments dept ON d.department_id = dept.id
+        LEFT JOIN treatments t ON t.appointment_id = a.id
+        WHERE a.id = ? AND a.patient_id = ?;
+        """,
+        (appointment_id, patient_id),
+    )
+    appt = cur.fetchone()
+    conn.close()
+
+    if not appt:
+        flash("Appointment not found.", "danger")
+        return redirect(url_for("main.patient_appointments"))
+
+    return render_template("patient_appointment_details.html", appt=appt)
