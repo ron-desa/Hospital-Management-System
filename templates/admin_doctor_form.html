@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Add Doctor | HMS{% endblock %}
+
+{% block content %}
+<h2>Add New Doctor</h2>
+
+<form method="POST" action="{{ url_for('main.admin_add_doctor') }}" class="mt-3">
+
+    <div class="row">
+        <div class="mb-3 col-md-6">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" name="full_name" required>
+        </div>
+        <div class="mb-3 col-md-6">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-control" name="username" required>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="mb-3 col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email">
+        </div>
+        <div class="mb-3 col-md-6">
+            <label class="form-label">Phone</label>
+            <input type="text" class="form-control" name="phone">
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="mb-3 col-md-6">
+            <label class="form-label">Specialization / Department</label>
+            <select class="form-select" name="department_id">
+                <option value="">Select Department</option>
+                {% for dept in departments %}
+                <option value="{{ dept['id'] }}">{{ dept['name'] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3 col-md-6">
+            <label class="form-label">Room Number</label>
+            <input type="text" class="form-control" name="room_no">
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Short Bio</label>
+        <textarea class="form-control" name="bio" rows="2"></textarea>
+    </div>
+
+    <div class="row">
+        <div class="mb-3 col-md-6">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-control" name="password" required>
+        </div>
+        <div class="mb-3 col-md-6">
+            <label class="form-label">Confirm Password</label>
+            <input type="password" class="form-control" name="confirm_password" required>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-success">Create Doctor</button>
+    <a href="{{ url_for('main.admin_doctors') }}" class="btn btn-secondary ms-2">Cancel</a>
+</form>
+{% endblock %}

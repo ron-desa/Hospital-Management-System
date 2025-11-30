@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask
 import os
 
@@ -8,7 +7,6 @@ def create_app():
     base_dir = os.path.dirname(__file__)
     app.config["DATABASE"] = os.path.join(base_dir, "instance", "hospital.db")
 
-    # Import and register blueprints / routes
     from controllers.routes import main_bp
     app.register_blueprint(main_bp)
 
