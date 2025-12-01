@@ -267,7 +267,74 @@ def admin_dashboard():
 @login_required
 @role_required("doctor")
 def doctor_dashboard():
-    return render_template("dashboard_doctor.html")
+    doctor_id = get_current_doctor_id()
+    if not doctor_id:
+        flash("Doctor profile not found.", "danger")
+        return redirect(url_for("main.login"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    today_str = date_cls.today().isoformat()
+
+    # Total appointments for this doctor
+    cur.execute(
+        "SELECT COUNT(*) AS c FROM appointments WHERE doctor_id = ?;",
+        (doctor_id,),
+    )
+    total_appts = cur.fetchone()["c"]
+
+    # Upcoming (Booked) appointments
+    today_str = date_cls.today().isoformat()
+
+# Upcoming (Booked) appointments: today or future
+    cur.execute(
+        """
+        SELECT COUNT(*) AS c
+        FROM appointments
+        WHERE doctor_id = ?
+        AND status = 'Booked'
+        AND date >= ?;
+        """,
+        (doctor_id, today_str),
+    )
+    upcoming_count = cur.fetchone()["c"]
+
+
+    # Completed appointments
+    cur.execute(
+        "SELECT COUNT(*) AS c FROM appointments WHERE doctor_id = ? AND status = 'Completed';",
+        (doctor_id,),
+    )
+    completed_count = cur.fetchone()["c"]
+
+    # Next few upcoming appointments (today or later, status = Booked)
+    cur.execute(
+        """
+        SELECT a.id, a.date, a.time, a.status,
+               u.full_name AS patient_name,
+               u.phone
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.id
+        JOIN users u ON p.user_id = u.id
+        WHERE a.doctor_id = ?
+          AND a.status = 'Booked'
+          AND a.date >= ?
+        ORDER BY a.date, a.time
+        LIMIT 5;
+        """,
+        (doctor_id, today_str),
+    )
+    upcoming = cur.fetchall()
+    conn.close()
+
+    stats = {
+        "total": total_appts,
+        "upcoming": upcoming_count,
+        "completed": completed_count,
+    }
+
+    return render_template("dashboard_doctor.html", stats=stats, upcoming=upcoming)
 
 
 @main_bp.route("/patient/dashboard")
