@@ -56,7 +56,7 @@ temp*.py
 # Media / bulky assets (optional — recommended)
 MAD1_project.pdf
 MAD1_Project_Video.mp4
-screenshots/
+# screenshots/
 er_diagram*.png
 er_diagram*.pdf
 
