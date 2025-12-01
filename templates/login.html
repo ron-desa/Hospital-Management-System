@@ -7,7 +7,8 @@
     <div class="col-md-4">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h3 class="card-title mb-3 text-center">Hospital Login</h3>
+                <h3 class="card-title mb-3 text-center">Welcome to the </h3>
+                <h3 class="card-title mb-3 text-center">Hospital Management System</h3>
                 <form method="POST" action="{{ url_for('main.login') }}">
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
@@ -41,4 +42,9 @@
         </div>
     </div>
 </div>
+
+<footer style="position: fixed; bottom: 10px; width: 100%; text-align:center; font-size:11px; color:#888;">
+    © Hospital Management System — Developed by Rounak Mukhopadhyay (22f1000876)
+</footer>
+
 {% endblock %}

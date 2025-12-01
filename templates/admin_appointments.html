@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}All Appointments | HMS{% endblock %}
+
+{% block content %}
+<h2>All Appointments</h2>
+
+<form class="row g-2 mt-3 mb-3" method="GET" action="{{ url_for('main.admin_appointments') }}">
+    <div class="col-md-3">
+        <input
+            type="text"
+            class="form-control"
+            name="patient"
+            placeholder="Patient name"
+            value="{{ request.args.get('patient', '') }}"
+        >
+    </div>
+    <div class="col-md-3">
+        <input
+            type="text"
+            class="form-control"
+            name="doctor"
+            placeholder="Doctor name"
+            value="{{ request.args.get('doctor', '') }}"
+        >
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" name="status">
+            <option value="">All Statuses</option>
+            {% for s in ['Booked', 'Completed', 'Cancelled'] %}
+            <option
+                value="{{ s }}"
+                {% if request.args.get('status') == s %}selected{% endif %}
+            >
+                {{ s }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3 d-flex">
+        <button class="btn btn-primary me-2 w-50" type="submit">Filter</button>
+        <a href="{{ url_for('main.admin_appointments') }}" class="btn btn-outline-secondary w-50">
+            Reset
+        </a>
+    </div>
+</form>
+
+<h4>Upcoming Appointments</h4>
+<table class="table table-striped table-bordered align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Patient</th>
+            <th>Doctor</th>
+            <th>Department</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% if upcoming %}
+        {% for a in upcoming %}
+        <tr>
+            <td>{{ a['date'] }}</td>
+            <td>{{ a['time'] }}</td>
+            <td>{{ a['patient_name'] }}</td>
+            <td>{{ a['doctor_name'] }}</td>
+            <td>{{ a['dept_name'] or 'N/A' }}</td>
+            <td>{{ a['status'] }}</td>
+            <td>
+                {% if a['status'] == 'Booked' %}
+                <a
+                    href="{{ url_for('main.admin_cancel_appointment', appointment_id=a['id']) }}"
+                    class="btn btn-sm btn-danger"
+                >
+                    Cancel
+                </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    {% else %}
+        <tr>
+            <td colspan="7" class="text-center">No upcoming appointments.</td>
+        </tr>
+    {% endif %}
+    </tbody>
+</table>
+
+<h4 class="mt-4">Past Appointments</h4>
+<table class="table table-striped table-bordered align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Patient</th>
+            <th>Doctor</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% if past %}
+        {% for a in past %}
+        <tr>
+            <td>{{ a['date'] }}</td>
+            <td>{{ a['time'] }}</td>
+            <td>{{ a['patient_name'] }}</td>
+            <td>{{ a['doctor_name'] }}</td>
+            <td>{{ a['status'] }}</td>
+        </tr>
+        {% endfor %}
+    {% else %}
+        <tr>
+            <td colspan="5" class="text-center">No past appointments.</td>
+        </tr>
+    {% endif %}
+    </tbody>
+</table>
+
+<a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-secondary mt-3">
+    ← Back to Dashboard
+</a>
+{% endblock %}

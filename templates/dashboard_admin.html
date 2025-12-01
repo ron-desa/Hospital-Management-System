@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Admin Dashboard | HMS{% endblock %}
+
 {% block content %}
 <h2>Admin Dashboard</h2>
 <p>Welcome, {{ session.get('full_name') }}.</p>
@@ -21,7 +22,9 @@
             <div class="card-body">
                 <h5 class="card-title">Patients</h5>
                 <p class="display-6">{{ stats.total_patients }}</p>
-                <!-- we can later add Manage Patients -->
+                <a href="{{ url_for('main.admin_patients') }}" class="btn btn-sm btn-primary mt-2">
+                    Manage Patients
+                </a>
             </div>
         </div>
     </div>
@@ -30,9 +33,62 @@
             <div class="card-body">
                 <h5 class="card-title">Appointments</h5>
                 <p class="display-6">{{ stats.total_appointments }}</p>
-                <!-- later: link to all appointments -->
+                <a href="{{ url_for('main.admin_appointments') }}" class="btn btn-sm btn-primary mt-2">
+                    View All Appointments
+                </a>
             </div>
         </div>
     </div>
 </div>
+
+<hr class="mt-4">
+
+<h4>Appointments by Status</h4>
+<p class="text-muted">Visual summary of bookings in the system.</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <canvas id="appointmentsStatusChart" height="200"></canvas>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function() {
+        const ctx = document.getElementById('appointmentsStatusChart');
+        if (!ctx) return;
+
+        const byStatus = {{ stats.by_status | tojson }};
+        const labels = Object.keys(byStatus);
+        const data = Object.values(byStatus);
+
+        if (labels.length === 0) {
+            return;
+        }
+
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: false
+                    }
+                }
+            }
+        });
+    })();
+</script>
 {% endblock %}

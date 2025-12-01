@@ -1,5 +1,5 @@
 # controllers/routes.py
-from flask import Blueprint, render_template, redirect, url_for, request, session, flash
+from flask import Blueprint, render_template, redirect, url_for, request, session, flash, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 # from datetime import datetime, date as date_cls
@@ -173,6 +173,53 @@ def register():
 
     return render_template("register.html")
 
+# --------- API: Summary stats ---------
+@main_bp.route("/api/stats")
+@login_required
+@role_required("admin")
+def api_stats():
+    """
+    Simple JSON API endpoint returning summary statistics:
+    - total doctors, patients, appointments
+    - appointment counts by status
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # total doctors
+    cur.execute("SELECT COUNT(*) AS c FROM doctors;")
+    total_doctors = cur.fetchone()["c"]
+
+    # total patients
+    cur.execute("SELECT COUNT(*) AS c FROM patients;")
+    total_patients = cur.fetchone()["c"]
+
+    # total appointments
+    cur.execute("SELECT COUNT(*) AS c FROM appointments;")
+    total_appointments = cur.fetchone()["c"]
+
+    # appointments by status
+    cur.execute(
+        """
+        SELECT status, COUNT(*) AS c
+        FROM appointments
+        GROUP BY status;
+        """
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    by_status = {row["status"]: row["c"] for row in rows}
+
+    return jsonify(
+        {
+            "total_doctors": total_doctors,
+            "total_patients": total_patients,
+            "total_appointments": total_appointments,
+            "appointments_by_status": by_status,
+        }
+    )
+
 
 # --------- Dashboards ---------
 @main_bp.route("/admin/dashboard")
@@ -191,15 +238,29 @@ def admin_dashboard():
     cur.execute("SELECT COUNT(*) AS c FROM appointments;")
     total_appointments = cur.fetchone()["c"]
 
+    # appointments by status for chart
+    cur.execute(
+        """
+        SELECT status, COUNT(*) AS c
+        FROM appointments
+        GROUP BY status;
+        """
+    )
+    rows = cur.fetchall()
     conn.close()
+
+    # build dict: {status: count}
+    by_status = {row["status"]: row["c"] for row in rows}
 
     stats = {
         "total_doctors": total_doctors,
         "total_patients": total_patients,
         "total_appointments": total_appointments,
+        "by_status": by_status,
     }
 
     return render_template("dashboard_admin.html", stats=stats)
+
 
 
 @main_bp.route("/doctor/dashboard")
@@ -379,6 +440,166 @@ def admin_toggle_doctor_blacklist(doctor_id):
 
     flash("Doctor status updated.", "info")
     return redirect(url_for("main.admin_doctors"))
+
+
+# --------- Admin: Manage Patients ---------
+@main_bp.route("/admin/patients")
+@login_required
+@role_required("admin")
+def admin_patients():
+    q = request.args.get("q", "").strip()
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    base_query = """
+        SELECT p.id AS patient_id,
+               u.full_name,
+               u.username,
+               u.email,
+               u.phone,
+               p.age,
+               p.gender,
+               p.address,
+               p.is_blacklisted
+        FROM patients p
+        JOIN users u ON p.user_id = u.id
+    """
+    params = []
+
+    if q:
+        base_query += """
+            WHERE u.full_name LIKE ?
+               OR u.email LIKE ?
+               OR u.phone LIKE ?
+        """
+        like_q = f"%{q}%"
+        params.extend([like_q, like_q, like_q])
+
+    base_query += " ORDER BY u.full_name;"
+
+    cur.execute(base_query, params)
+    patients = cur.fetchall()
+    conn.close()
+
+    return render_template("admin_patients.html", patients=patients)
+
+
+@main_bp.route("/admin/patients/<int:patient_id>/toggle_blacklist")
+@login_required
+@role_required("admin")
+def admin_toggle_patient_blacklist(patient_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT is_blacklisted FROM patients WHERE id = ?;", (patient_id,))
+    row = cur.fetchone()
+
+    if not row:
+        conn.close()
+        flash("Patient not found.", "danger")
+        return redirect(url_for("main.admin_patients"))
+
+    new_status = 0 if row["is_blacklisted"] else 1
+    cur.execute("UPDATE patients SET is_blacklisted = ? WHERE id = ?;", (new_status, patient_id))
+    conn.commit()
+    conn.close()
+
+    flash("Patient status updated.", "info")
+    return redirect(url_for("main.admin_patients"))
+
+# --------- Admin: View / Manage All Appointments ---------
+@main_bp.route("/admin/appointments")
+@login_required
+@role_required("admin")
+def admin_appointments():
+    patient_q = request.args.get("patient", "").strip()
+    doctor_q = request.args.get("doctor", "").strip()
+    status_q = request.args.get("status", "").strip()
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    query = """
+        SELECT a.*,
+               pu.full_name AS patient_name,
+               du.full_name AS doctor_name,
+               dept.name AS dept_name
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.id
+        JOIN users pu ON p.user_id = pu.id
+        JOIN doctors d ON a.doctor_id = d.id
+        JOIN users du ON d.user_id = du.id
+        LEFT JOIN departments dept ON d.department_id = dept.id
+        WHERE 1=1
+    """
+    params = []
+
+    if patient_q:
+        query += " AND pu.full_name LIKE ?"
+        params.append(f"%{patient_q}%")
+
+    if doctor_q:
+        query += " AND du.full_name LIKE ?"
+        params.append(f"%{doctor_q}%")
+
+    if status_q:
+        query += " AND a.status = ?"
+        params.append(status_q)
+
+    query += " ORDER BY a.date DESC, a.time DESC;"
+
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    conn.close()
+
+    today_str = date_cls.today().isoformat()
+    upcoming = []
+    past = []
+
+    for r in rows:
+        if r["date"] >= today_str and r["status"] == "Booked":
+            upcoming.append(r)
+        else:
+            past.append(r)
+
+    return render_template("admin_appointments.html", upcoming=upcoming, past=past)
+
+
+@main_bp.route("/admin/appointments/<int:appointment_id>/cancel")
+@login_required
+@role_required("admin")
+def admin_cancel_appointment(appointment_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM appointments WHERE id = ?;", (appointment_id,))
+    appt = cur.fetchone()
+
+    if not appt:
+        conn.close()
+        flash("Appointment not found.", "danger")
+        return redirect(url_for("main.admin_appointments"))
+
+    if appt["status"] != "Booked":
+        conn.close()
+        flash("Only booked appointments can be cancelled.", "warning")
+        return redirect(url_for("main.admin_appointments"))
+
+    now = datetime.utcnow().isoformat()
+    cur.execute(
+        """
+        UPDATE appointments
+        SET status = 'Cancelled', updated_at = ?
+        WHERE id = ?;
+        """,
+        (now, appointment_id),
+    )
+    conn.commit()
+    conn.close()
+
+    flash("Appointment cancelled by admin.", "info")
+    return redirect(url_for("main.admin_appointments"))
+
 
 
 # --------- Patient: Find Doctors & Book ---------

@@ -1,0 +1,110 @@
+digraph ER_HMS {
+    graph [splines=ortho, rankdir=LR];
+    node  [shape=record, fontsize=10];
+
+    // Entities
+    Users [
+        label = "{ Users |
+            { <id> id (PK) |
+              username (UNIQUE) |
+              password_hash |
+              full_name |
+              email |
+              phone |
+              role (admin/doctor/patient) |
+              is_active |
+              created_at }
+        }"
+    ];
+
+    Departments [
+        label = "{ Departments |
+            { <id> id (PK) |
+              name (UNIQUE) |
+              description |
+              created_at }
+        }"
+    ];
+
+    Doctors [
+        label = "{ Doctors |
+            { <id> id (PK) |
+              user_id (FK) |
+              department_id (FK) |
+              bio |
+              room_no |
+              is_blacklisted }
+        }"
+    ];
+
+    Patients [
+        label = "{ Patients |
+            { <id> id (PK) |
+              user_id (FK) |
+              age |
+              gender |
+              address |
+              emergency_contact |
+              is_blacklisted }
+        }"
+    ];
+
+    DoctorAvailability [
+        label = "{ Doctor_Availability |
+            { <id> id (PK) |
+              doctor_id (FK) |
+              date |
+              start_time |
+              end_time |
+              max_appointments |
+              is_available }
+        }"
+    ];
+
+    Appointments [
+        label = "{ Appointments |
+            { <id> id (PK) |
+              patient_id (FK) |
+              doctor_id (FK) |
+              date |
+              time |
+              status |
+              created_at |
+              updated_at |
+              UNIQUE(doctor_id, date, time) }
+        }"
+    ];
+
+    Treatments [
+        label = "{ Treatments |
+            { <id> id (PK) |
+              appointment_id (FK) |
+              diagnosis |
+              prescription |
+              notes |
+              created_at }
+        }"
+    ];
+
+    // Relationships (foreign keys)
+    // Users 1 - 0..1 Doctors
+    Users:id -> Doctors:user_id [label="1 : 0..1", fontsize=9];
+
+    // Users 1 - 0..1 Patients
+    Users:id -> Patients:user_id [label="1 : 0..1", fontsize=9];
+
+    // Departments 1 - * Doctors
+    Departments:id -> Doctors:department_id [label="1 : *", fontsize=9];
+
+    // Doctors 1 - * Doctor_Availability
+    Doctors:id -> DoctorAvailability:doctor_id [label="1 : *", fontsize=9];
+
+    // Doctors 1 - * Appointments
+    Doctors:id -> Appointments:doctor_id [label="1 : *", fontsize=9];
+
+    // Patients 1 - * Appointments
+    Patients:id -> Appointments:patient_id [label="1 : *", fontsize=9];
+
+    // Appointments 1 - 0..1 Treatments
+    Appointments:id -> Treatments:appointment_id [label="1 : 0..1", fontsize=9];
+}
