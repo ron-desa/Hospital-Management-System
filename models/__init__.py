@@ -1,6 +1,4 @@
-from flask_sqlalchemy import SQLAlchemy
 
-db = SQLAlchemy()
 
 # Import your models here so Flask can find them
 # from .user import User
