@@ -13,14 +13,38 @@
     </a>
 </div>
 
-<h4 class="mt-4">Departments / Specializations</h4>
+<h4>Departments / Specializations</h4>
 <ul>
     {% for dept in departments %}
     <li>{{ dept['name'] }} - {{ dept['description'] }}</li>
     {% endfor %}
 </ul>
 
-<p class="text-muted mt-3">
-Doctor availability, appointment booking and history will appear here.
-</p>
+<h4 class="mt-4">Doctor Availability (Next 7 Days)</h4>
+<table class="table table-striped table-bordered align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Date</th>
+            <th>Time Window</th>
+            <th>Doctor</th>
+            <th>Specialization</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% if availability %}
+        {% for a in availability %}
+        <tr>
+            <td>{{ a['date'] }}</td>
+            <td>{{ a['start_time'] }} – {{ a['end_time'] }}</td>
+            <td>{{ a['doctor_name'] }}</td>
+            <td>{{ a['dept_name'] or 'N/A' }}</td>
+        </tr>
+        {% endfor %}
+    {% else %}
+        <tr>
+            <td colspan="4" class="text-center">No availability data yet.</td>
+        </tr>
+    {% endif %}
+    </tbody>
+</table>
 {% endblock %}

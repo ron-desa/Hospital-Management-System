@@ -19,6 +19,30 @@
     </div>
 </div>
 
+<h5>Availability (Next 7 Days)</h5>
+<table class="table table-sm table-bordered align-middle mb-3">
+    <thead class="table-light">
+        <tr>
+            <th>Date</th>
+            <th>Time Window</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% if availability %}
+        {% for s in availability %}
+        <tr>
+            <td>{{ s['date'] }}</td>
+            <td>{{ s['start_time'] }} – {{ s['end_time'] }}</td>
+        </tr>
+        {% endfor %}
+    {% else %}
+        <tr>
+            <td colspan="2" class="text-center">No availability added by doctor yet.</td>
+        </tr>
+    {% endif %}
+    </tbody>
+</table>
+
 <form method="POST" action="{{ url_for('main.patient_book_appointment', doctor_id=doctor['doctor_id']) }}">
     <div class="row">
         <div class="mb-3 col-md-4">
