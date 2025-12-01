@@ -1,0 +1,68 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables / secrets
+*.env
+
+# Databases
+*.db
+*.sqlite3
+instance/*.db
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup / temp files
+*.bak
+*.swp
+*.tmp
+*~
+temp*.py
+
+# Pytest / coverage
+.cache/
+.coverage
+.pytest_cache/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Compiled code
+*.so
+
+# IDE/editor configs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Archive files
+*.zip
+*.tar.gz
+*.tar
+
+# Media / bulky assets (optional — recommended)
+MAD1_project.pdf
+MAD1_Project_Video.mp4
+screenshots/
+er_diagram*.png
+er_diagram*.pdf
+
+# Flask instance folder (runtime generated)
+instance/*
+!instance/.keep              # (optional — keep folder but ignore content)
+
+# Static uploads (if used in future)
+static/uploads/
